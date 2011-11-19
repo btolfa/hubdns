@@ -24,6 +24,7 @@ import getopt
 from hubdns import HubDNS
 from utils import HubAPIError
 from registry import registry
+from miniupnpc import UPnP
 
 def fatal(e):
     print >> sys.stderr, "error: " + str(e)
@@ -36,6 +37,22 @@ def usage(e=None):
     print >> sys.stderr, "Syntax: %s" % sys.argv[0]
     print >> sys.stderr, __doc__.strip()
     sys.exit(1)
+
+def upnp():
+    u = UPnP()
+    u.discoverdelay = 2000
+    if u.discover():
+        u.selectigd()
+        eport = 81
+         
+        r = u.getspecificportmapping(eport, 'TCP')
+        while r != None and eport < 65536:
+            eport = eport + 1
+	    r = u.getspecificportmapping(eport, 'TCP')
+        
+	u.addportmapping(eport, 'TCP', u.lanaddr, 80,
+	                'HubDNS port forwarding', '')
+        
 
 def main():
     try:
@@ -60,6 +77,7 @@ def main():
     try:
         hubdns = HubDNS(subkey=registry.sub_apikey)
         ipaddress = hubdns.update(registry.fqdn)
+	upnp()
     except HubAPIError, e:
         fatal(e.description)
 
